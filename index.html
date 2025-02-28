@@ -138,6 +138,7 @@
                 this.updateCards();
                 if (this.calculateHandValue(this.playerHand) > 21) {
                     this.updateDisplay("You busted! Dealer wins.");
+                    this.logToGoogleSheets("Bust");
                     return false;
                 }
                 return true;
@@ -154,13 +155,16 @@
                 const playerTotal = this.calculateHandValue(this.playerHand);
                 const dealerTotal = this.calculateHandValue(this.dealerHand);
                 let resultMessage = "";
+                let result = "Lost";
 
                 if (dealerTotal > 21 || playerTotal > dealerTotal) {
                     resultMessage = "You win!";
                     this.cash += this.bet * 2;
+                    result = "Win";
                 } else if (playerTotal === dealerTotal) {
                     resultMessage = "It's a tie! Your bet is returned.";
                     this.cash += this.bet;
+                    result = "Tie";
                 } else {
                     resultMessage = "Dealer wins.";
                 }
@@ -168,6 +172,7 @@
                 this.bet = 0;
                 this.updateCards();
                 this.updateDisplay(resultMessage);
+                this.logToGoogleSheets(result);
 
                 if (this.cash <= 0) {
                     this.updateDisplay("You're out of money! Game over.");
@@ -184,14 +189,28 @@
                 const element = document.getElementById(elementId);
                 element.innerHTML = "";
                 hand.forEach(card => {
+                    let cardValue = card.value === "10" ? "0" : card.value;
                     const img = document.createElement("img");
-                    img.src = `https://deckofcardsapi.com/static/img/${card.value}${card.suit}.png`;
+                    img.src = `https://deckofcardsapi.com/static/img/${cardValue}${card.suit}.png`;
+                    img.onerror = () => { img.src = "https://deckofcardsapi.com/static/img/back.png"; };
                     element.appendChild(img);
                 });
             }
 
             updateDisplay(message) {
                 document.getElementById("game-log").innerText = message;
+            }
+
+            logToGoogleSheets(result) {
+                fetch("https://script.google.com/macros/s/AKfycbxtJ4qBPZHLoWwSLxhKbi3Zd2Wg9Q0dO1j-xnzOYH5rmn5CvTQFWrLYmUAuJ4KQrQbUWQ/exec", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        cash: this.cash,
+                        bet: this.bet,
+                        result: result
+                    })
+                });
             }
         }
 
